@@ -1,14 +1,37 @@
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
 
 type Props = {
   isMoving?: boolean;
+  what: any;
+  soWhat: () => void;
+  when: any;
 };
 
-const BoulderComponent = ({ isMoving }: Props) => {
+const BoulderComponent = ({ isMoving, what, soWhat, when }: Props) => {
   const [xState, setXState] = useState(0);
   const [yState, setYState] = useState(0);
   const [rotation, setRotation] = useState(0);
+  const boulderRef = useRef(null);
+
+  useEffect(() => {
+    // detection logic
+    detectCollision();
+  }, [when]);
+
+  const detectCollision = () => {
+    if (boulderRef.current) {
+      const boulder = (boulderRef.current as any).getBoundingClientRect();
+      const didCollide =
+        boulder.left + 30 < what.right &&
+        boulder.right - 30 > what.left &&
+        boulder.bottom - 30 > what.top &&
+        boulder.top + 30 < what.bottom;
+      if (didCollide) {
+        soWhat();
+      }
+    }
+  };
   useEffect(() => {
     setXState(Math.random() * (window.innerWidth - 80));
     setYState(-Math.random() * 100 - 100);
@@ -17,6 +40,7 @@ const BoulderComponent = ({ isMoving }: Props) => {
 
   return (
     <div
+      ref={boulderRef}
       className="boulder-shadow"
       style={{
         position: "absolute",
@@ -27,11 +51,13 @@ const BoulderComponent = ({ isMoving }: Props) => {
       }}
     >
       <Image
-        src="/Images/meteor.png"
-        alt="meteor"
-        width={100}
-        height={100}
-        style={{ rotate: `${rotation}deg` }}
+        src={"/Images/meteor.png"}
+        width={80}
+        height={80}
+        alt={""}
+        style={{
+          rotate: `${rotation}deg`,
+        }}
       />
     </div>
   );
