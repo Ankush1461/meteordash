@@ -7,7 +7,7 @@ const robotoMono = Roboto_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MeteorDash",
-  description: "Created by Ankush Karmakar",
+  description: "An interative Meteor Dash game. Created by Ankush Karmakar",
 };
 
 export default function RootLayout({

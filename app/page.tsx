@@ -4,7 +4,6 @@ import GameInfoOverlay from "@/components/GameInfoOverlay";
 import HandRecognizer from "@/components/HandRecognizer";
 import RocketComponent from "@/components/RocketComponent";
 import { playBackground, playFX } from "@/utils/audioHandler";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 let generationInterval: any;
@@ -30,6 +29,7 @@ export default function Home() {
 
   const rocketRef = useRef(null);
   const [rocket, setRocket] = useState<any>();
+
   useEffect(() => {
     setRocketLeft(window.innerWidth / 2);
     livesRemaining = 4;
@@ -165,6 +165,7 @@ export default function Home() {
               what={rocket}
               soWhat={collisionHandler}
               when={detectCollisionTrigger}
+              distance={distance}
             />
           );
         })}
