@@ -52,6 +52,7 @@ export default function Home() {
     }
     if (distance >= highScore) {
       highScore = distance;
+      Cookies.set("highScore", highScore.toString(), { expires: 365 }); // store high score in cookie for 1 year
     }
 
     return () => {
