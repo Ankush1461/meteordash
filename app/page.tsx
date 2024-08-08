@@ -1,4 +1,5 @@
 "use client";
+import Cookies from "js-cookie";
 import BoulderComponent from "@/components/BoulderComponent";
 import GameInfoOverlay from "@/components/GameInfoOverlay";
 import HandRecognizer from "@/components/HandRecognizer";
@@ -12,6 +13,8 @@ let distanceInterval: any;
 
 let isInvincible = false;
 let livesRemaining: number;
+let highScore: number;
+
 export default function Home() {
   const [rocketLeft, setRocketLeft] = useState(0);
   const [isDetected, setIsDetected] = useState(false);
@@ -37,16 +40,24 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    highScore = parseInt(Cookies.get("highScore") || "0");
     if (isDetected && !isGameOver) {
       distanceInterval = setInterval(() => {
+        if (distance >= highScore) {
+          highScore++;
+          Cookies.set("highScore", highScore.toString(), { expires: 365 }); // store high score in cookie for 1 year
+        }
         setDistance((prev) => prev + 1);
       }, 100);
+    }
+    if (distance >= highScore) {
+      highScore = distance;
     }
 
     return () => {
       clearInterval(distanceInterval);
     };
-  }, [isDetected, isGameOver]);
+  }, [isDetected, isGameOver, distance]);
 
   useEffect(() => {
     if (isDetected && !isGameOver) {
@@ -178,6 +189,7 @@ export default function Home() {
           distance,
           livesRemainingState,
           isGameOver,
+          highScore,
         }}
       />
     </main>

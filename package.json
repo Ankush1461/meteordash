@@ -12,6 +12,7 @@
     "@fortawesome/free-brands-svg-icons": "^6.6.0",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@mediapipe/tasks-vision": "^0.10.14",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.416.0",
     "next": "14.2.5",
     "react": "^18",
@@ -19,6 +20,7 @@
     "tone": "^15.0.4"
   },
   "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
