@@ -18,7 +18,13 @@
 
 # misc
 .DS_Store
+
+# local dev leaderboard store (Vercel KV is used in production)
+/.data/
 *.pem
+
+# agent tool state
+/.freebuff/
 
 # debug
 npm-debug.log*

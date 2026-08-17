@@ -1,80 +1,76 @@
-import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import React, { memo } from "react";
 
-type Props = {
-  isMoving?: boolean;
-  what: any;
-  soWhat: () => void;
-  when: any;
-  distance: number;
+export type Boulder = {
+  key: string;
+  x: number;
+  y: number;
+  size: number;
+  rotation: number;
+  speed: number;
+  hit: boolean;
+  /** True once this meteor has been grazed (near-miss) — only rewards once. */
+  grazed: boolean;
+  /** Which meteor sprite variant to render (0-2) — adds belt variety. */
+  variant: number;
 };
 
-let randomSize = Math.random() * (80 - 10) + 10;
+// Three seed-varied cratered rocks so the belt doesn't look copy-pasted.
+const METEOR_SPRITES = [
+  "/Images/meteor.png",
+  "/Images/meteor-2.png",
+  "/Images/meteor-3.png",
+];
 
-const BoulderComponent = ({
-  isMoving,
-  what,
-  soWhat,
-  when,
-  distance,
-}: Props) => {
-  const [xState, setXState] = useState(0);
-  const [yState, setYState] = useState(0);
-  const [rotation, setRotation] = useState(0);
-  const boulderRef = useRef(null);
+type Props = {
+  boulder: Boulder;
+  registerEl: (key: string, el: HTMLDivElement | null) => void;
+  /** CSS filter tinting the meteor for the current zone theme. */
+  filter?: string;
+};
 
-  const [size, setSize] = useState(0);
-
-  useEffect(() => {
-    // detection logic
-    detectCollision();
-  }, [when]);
-
-  const detectCollision = () => {
-    if (boulderRef.current) {
-      const boulder = (boulderRef.current as any).getBoundingClientRect();
-      const didCollide =
-        boulder.left + 28 < what.right &&
-        boulder.right - 28 > what.left &&
-        boulder.bottom - 28 > what.top &&
-        boulder.top + 28 < what.bottom;
-      if (didCollide) {
-        soWhat();
-      }
-    }
-  };
-  useEffect(() => {
-    setXState(Math.random() * (window.innerWidth - 80));
-    setYState(-Math.random() * 100 - 100);
-    setRotation(Math.random() * 360);
-    setSize(Math.random() * (80 - 50) + 50);
-  }, []);
-
+/**
+ * Presentational meteor. Physics, collision detection and off-screen
+ * despawning are handled by the requestAnimationFrame loop in page.tsx,
+ * which moves this element by mutating its transform directly — so this
+ * component never re-renders while a boulder is falling.
+ */
+const BoulderComponent = memo(function BoulderComponent({
+  boulder,
+  registerEl,
+  filter = "none",
+}: Props) {
   return (
     <div
-      ref={boulderRef}
+      ref={(el) => registerEl(boulder.key, el)}
       className="boulder-shadow"
       style={{
         position: "absolute",
-        left: xState,
-        top: yState,
-        animation: `moveDown ${
-          isMoving && distance > 50 ? 10 - Math.log2(distance / 50) : 10
-        }s linear forwards`,
-        animationPlayState: isMoving ? "running" : "paused",
+        left: 0,
+        top: 0,
+        width: boulder.size,
+        height: boulder.size,
+        transform: `translate3d(${boulder.x}px, ${boulder.y}px, 0) rotate(${boulder.rotation}deg)`,
       }}
     >
       <Image
-        src={"/Images/meteor.png"}
-        width={size}
-        height={size}
+        src={METEOR_SPRITES[boulder.variant % METEOR_SPRITES.length]}
+        width={boulder.size}
+        height={boulder.size}
         alt={""}
         style={{
-          rotate: `${rotation}deg`,
+          // Pin both rendered dimensions like the boss sprite: Tailwind's
+          // preflight `img { height: auto }` would otherwise size the height
+          // from the non-square meteor sheet's intrinsic ratio, which trips
+          // Next's aspect-ratio warning whenever a boulder size is an exact
+          // integer (e.g. the tutorial's 70px demo rock).
+          width: boulder.size,
+          height: boulder.size,
+          filter,
         }}
       />
     </div>
   );
-};
+});
 
 export default BoulderComponent;

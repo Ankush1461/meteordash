@@ -1,19 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  /* Meteor Dash is a dark space game by design — the zone tints (e.g.
+     rgba(10, 20, 45, 0.5)) are semi-transparent and blend with this page
+     background, so the palette MUST be dark regardless of the OS theme.
+     Forcing the dark values keeps light-mode systems looking byte-identical
+     to dark mode instead of washing out through the translucent tints. */
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+  color-scheme: dark;
 }
 
 body {
@@ -32,10 +28,26 @@ body {
   }
 }
 
-@keyframes moveDown {
-  to {
-    top: 2000px;
+@keyframes bannerFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
   }
+  8% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+.banner-fade {
+  animation: bannerFade 2.6s ease forwards;
 }
 
 .boulder-shadow {
@@ -44,4 +56,305 @@ body {
 
 .rocket-shadow {
   filter: drop-shadow(3px 2px 2px #00000066);
+}
+
+.dash-glow {
+  filter: drop-shadow(0 0 16px rgba(125, 211, 252, 0.95));
+  transition: filter 150ms ease-out;
+}
+
+/* --- Hand-driven menu navigation (idle / game-over) --- */
+
+/* The pointing-hand cursor: a glowing ring with a center dot. The engine
+   moves it via transform and fades it with opacity — never re-renders. */
+.menu-cursor {
+  border: 2px solid rgba(125, 211, 252, 0.9);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.25), transparent 70%);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+  transition: opacity 120ms ease-out;
+}
+.menu-cursor::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: #7dd3fc;
+  transform: translate(-50%, -50%);
+}
+
+/* The button under the cursor — a sky ring + brighten so the player can see
+   exactly what a fist will confirm. */
+.menu-hover {
+  outline: 2px solid rgba(56, 189, 248, 0.75);
+  outline-offset: 2px;
+  filter: brightness(1.3);
+  transition: filter 100ms ease-out;
+}
+
+/* Locked-onto-button state: the magnetic snap pulls the cursor onto the
+   nearest button and turns it amber with a pulsing glow, so the player
+   sees the capture before they pinch. Box-shadow only (no scale) so it
+   coexists with the click pulse below. */
+@keyframes menu-lock {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 22px 6px rgba(251, 191, 36, 0.95);
+  }
+}
+.menu-cursor.lock {
+  border-color: rgba(251, 191, 36, 0.95);
+  animation: menu-lock 520ms ease-in-out infinite;
+}
+
+/* Haptic-style click feedback: a quick scale pop + glow flash. The pulse
+   animates the CSS `scale` property (composes with the engine's inline
+   `transform: translate3d(...)` position) plus the box-shadow, so the
+   cursor pops in place without ever jumping. */
+@keyframes menu-pulse {
+  0% {
+    scale: 1;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+  }
+  35% {
+    scale: 1.45;
+    box-shadow: 0 0 26px 7px rgba(56, 189, 248, 0.95);
+  }
+  100% {
+    scale: 1;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+  }
+}
+.menu-cursor.pulse {
+  animation: menu-pulse 280ms ease-out;
+}
+
+/* Rocket impact rattle — the ship physically shakes when hit. */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-6px) rotate(-3deg);
+  }
+  40% {
+    transform: translateX(6px) rotate(3deg);
+  }
+  60% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  80% {
+    transform: translateX(4px) rotate(1.5deg);
+  }
+}
+
+.wiggle {
+  animation: wiggle 0.35s ease-in-out;
+}
+
+/* Hand-drawn sketchbook style for the tutorial callouts. */
+.handdraw-card {
+  border: 3px solid #334155;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  background: #fffdf3;
+  color: #334155;
+  box-shadow: 6px 8px 0 rgba(51, 65, 85, 0.28);
+  transform: rotate(-1.2deg);
+}
+
+.handdraw-card::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #334155;
+  border-radius: 50% 45% 55% 40% / 45% 55% 40% 50%;
+  background: #fca5a5;
+}
+
+.handdraw-mark {
+  background: linear-gradient(transparent 55%, rgba(250, 204, 21, 0.85) 55%);
+  padding: 0 2px;
+  font-weight: 900;
+}
+
+.handdraw-icon {
+  border: 3px solid #334155;
+  background: #fef3c7;
+  transform: rotate(-3deg);
+}
+
+.handdraw-btn {
+  border: 2px solid #334155;
+  background: #fff;
+  transform: rotate(1deg);
+  box-shadow: 2px 3px 0 rgba(51, 65, 85, 0.28);
+}
+
+.handdraw-btn:hover {
+  background: #fee2e2;
+}
+
+@keyframes bossPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+}
+
+.boss-aura {
+  animation: bossPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bossSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bossSpinReverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.boss-spin {
+  animation: bossSpin 18s linear infinite;
+}
+
+.boss-spin-reverse {
+  animation: bossSpinReverse 14s linear infinite;
+}
+
+.boss-orbit {
+  animation: bossSpin 10s linear infinite;
+}
+
+/* Rocket engine flame flickers (SVG path, transform-box relative). */
+@keyframes flameFlicker {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.12);
+  }
+}
+
+.rocket-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  animation: flameFlicker 0.28s ease-in-out infinite;
+}
+
+
+@keyframes bossFlashFade {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.boss-flash {
+  background: radial-gradient(
+    circle at 50% 28%,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.4) 55%,
+    transparent 75%
+  );
+  animation: bossFlashFade 0.5s ease-out forwards;
+}
+
+/* --- Leaderboard confetti (top-10 landing) --- */
+.confetti-piece {
+  position: absolute;
+  top: -14px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-sway), 105vh, 0)
+      rotate(var(--confetti-rot));
+    opacity: 0;
+  }
+}
+
+/* Hide scrollbars on overlay panels — they scroll by wheel/touch but never
+   show a visible track (the starfield HUD shouldn't grow a scrollbar). */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Leaderboard floating window + button --- */
+@keyframes leaderboardWindowIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes leaderboardBackdropIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes leaderboardButtonGlow {
+  from {
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.12);
+  }
+  to {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.32);
+  }
+}
+
+.leaderboard-window {
+  animation: leaderboardWindowIn 0.18s ease-out;
+}
+
+.leaderboard-backdrop {
+  animation: leaderboardBackdropIn 0.15s ease-out;
+}
+
+.leaderboard-button {
+  animation: leaderboardButtonGlow 2.4s ease-in-out infinite alternate;
 }
