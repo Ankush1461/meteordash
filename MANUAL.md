@@ -16,14 +16,14 @@ Meteor Dash is a **hand-gesture space arcade** built for the browser. You fly a 
 
 | Layer | Choice | Why |
 |---|---|---|
-| Framework | **Next.js 15 (App Router), React 19** | Server-rendered landing, API routes for the leaderboard, static asset pipeline |
+| Framework | **Next.js 16 (App Router), React 19** | Server-rendered landing, API routes for the leaderboard, static asset pipeline |
 | Hand tracking | **MediaPipe Hands** (WASM, loaded from jsDelivr + model from Google storage) | Industry-standard landmark tracking that runs fully client-side — no server, no latency, no cost |
 | Audio | **Tone.js** | Synthesized music/SFX — zero audio files shipped; zone-tinted beds, boss drone, volume slider and mute are all procedural |
 | State & loop | Custom `useGameEngine` hook with a **requestAnimationFrame loop** | All physics on refs, DOM mutations only where visible — see §6.3 for why this matters |
 | Persistence | `js-cookie` (badges, skins, settings) + **Upstash Redis** (leaderboard) | Badges/skins are per-player cosmetics; leaderboard is the one cross-player system |
 | Styling | Tailwind CSS + custom keyframes in `app/globals.css` | Consistent design system, no CSS-in-JS overhead |
 | Art | **Procedurally generated PNGs** (`scripts/generate-*.js`) | No external assets, no licenses, every sprite matches a coherent "lit, irregular, realistic" style |
-| Tests | **Vitest** (61 unit + API tests) | Scoring, validation, signing, physics, and API routes are pure functions — cheap to lock down |
+| Tests | **Vitest** (66 unit + API tests) | Scoring, validation, signing, physics, and API routes are pure functions — cheap to lock down |
 | Security | Strict **CSP** in production (`next.config.mjs`) | Blocks the only realistic tampering vector — injected third-party scripts (see §10) |
 
 ---
@@ -301,7 +301,7 @@ scripts/
   generate-og-image.js  # Procedural art generation
   generate-upi-qr.js    # Build-time UPI QRs
   generate-all.js       # Manual: runs every generator (not auto-run)
-tests/                  # 61 unit + API tests
+tests/                  # 66 unit + API tests
 ```
 
 ### 6.2 Why the engine is a single 2,883-line hook
@@ -328,6 +328,7 @@ This was an explicit design goal: **no player should gain an advantage from scre
 - Steering speed is relative to the field, sprite sizes scale with the viewport.
 - **Clamps keep it fair at the extremes:** gameplay scale is clamped to **0.45×–2.2×** (`SCALE_MIN`/`SCALE_MAX`) and sprite sizes to **0.7×–1.5×** (`SIZE_SCALE_MIN`/`SIZE_SCALE_MAX`) — so a phone doesn't get invisible meteors and an ultrawide doesn't get unreadable ones.
 - **20% screen-coverage cap** on meteors — density stops growing past a point, so late-game difficulty comes from *speed and patterns*, never from the screen being full of rocks.
+- **20% faster initial speed (v2.1):** the base fall duration was tightened from 10 s to **8.33 s** (`baseDuration` in `lib/game/physics.ts`), making the opening belt 20% more intense from the first second. The log-scaling acceleration curve then applies on top of this faster baseline.
 
 ### 6.5 Procedural art — why generated, and the style rules
 
@@ -500,7 +501,9 @@ Everything tunable is in **`lib/game/constants.ts`** — the game's tuning sheet
 - Steering: `TILT_SMOOTHING` (0.25), `DEFAULT_SENSITIVITY` (1.0, range 0.5–3)
 - Fairness: `REF_WIDTH` (1280), `SCALE_MIN/MAX` (0.45/2.2), `SIZE_SCALE_MIN/MAX` (0.7/1.5)
 - Bosses: `BOSS_TUNING` + `BOSS_SPRITES` in `lib/game/bosses.ts`
+- Landing Menu Layout: Completely redesigned in **v2.1** to remove the rounded container box, presenting all diagnostic, manual, and hangar selection items in a clean single-panel layout directly on the space background.
 
 ---
 
-*Meteor Dash v2.0.0.0 — built by Ankush Karmakar. Fly safe, pilot. 🚀*
+*Meteor Dash v2.1.0.0 — built by Ankush Karmakar. Fly safe, pilot. 🚀*
+

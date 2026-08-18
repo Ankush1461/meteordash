@@ -23,8 +23,6 @@
 /.data/
 *.pem
 
-# agent tool state
-/.freebuff/
 
 # debug
 npm-debug.log*

@@ -141,7 +141,7 @@ export function useGameEngine() {
   // Floating leaderboard window open state — owned here so the confirm
   // handler can pop it open (with a fresh fetch) right after a save.
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [gameState, setGameState] = useState<GameState>("idle");
+  const [gameState, setGameState] = useState<GameState>("landing");
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [highScore, setHighScore] = useState(0);
   const [sensitivity, setSensitivity] = useState(DEFAULT_SENSITIVITY);
@@ -197,7 +197,7 @@ export function useGameEngine() {
   // run data at submission so the API rejects unsigned/tampered scores.
   const leaderboardTokenRef = useRef<string | null>(null);
   const highScoreRef = useRef(0);
-  const gameStateRef = useRef<GameState>("idle");
+  const gameStateRef = useRef<GameState>("landing");
   const countdownRef = useRef(COUNTDOWN_SECONDS);
   const countdownStartRef = useRef(0);
   const distanceRef = useRef(0);
@@ -339,7 +339,7 @@ export function useGameEngine() {
     let best: HTMLElement | null = null;
     let bestD = radius;
     const els = document.querySelectorAll(
-      "button:not([disabled]), input:not([disabled])"
+      "button:not([disabled]), input:not([disabled]), a[href]"
     ) as NodeListOf<HTMLElement>;
     for (const b of els) {
       if (!b.isConnected) continue;
@@ -351,7 +351,7 @@ export function useGameEngine() {
       // clipping AND stacking, so a button under an open modal's backdrop
       // (or scrolled out of its container) is excluded here.
       const top = document.elementFromPoint(cx, cy);
-      if (top && top !== b && !b.contains(top)) continue;
+      if (top && top !== b && !b.contains(top) && top.closest("button, a, input") !== b) continue;
       const d = Math.hypot(cx - x, cy - y);
       if (d <= bestD) {
         bestD = d;
@@ -422,7 +422,7 @@ export function useGameEngine() {
     }
     // Hover highlight for the button/input under the (snapped) cursor.
     const el = document.elementFromPoint(sx, sy);
-    const btn = (el?.closest?.("button, input") as HTMLElement | null) ?? null;
+    const btn = (el?.closest?.("button, input, a") as HTMLElement | null) ?? null;
     const prev = menuHoveredElRef.current;
     if (prev && prev !== btn) {
       prev.classList.remove("menu-hover");
@@ -451,7 +451,7 @@ export function useGameEngine() {
   };
 
   // Drop the hover highlight + lock ring when the cursor hides.
-  const clearMenuHighlight = () => {
+  const clearMenuHighlight = useCallback(() => {
     const cur = menuCursorRef.current;
     if (cur) cur.classList.remove("lock");
     menuSnappedElRef.current = null;
@@ -460,16 +460,16 @@ export function useGameEngine() {
       prev.classList.remove("menu-hover");
       menuHoveredElRef.current = null;
     }
-  };
+  }, []);
 
   // Fade the cursor + drop its highlight/lock, but KEEP the last position
   // so a fist (confirm) pressed right after lowering the point still clicks
   // what the player was aiming at — hiding is visual, not forgetful.
-  const hideMenuCursor = () => {
+  const hideMenuCursor = useCallback(() => {
     const cur = menuCursorRef.current;
     if (cur) cur.style.opacity = "0";
     clearMenuHighlight();
-  };
+  }, [clearMenuHighlight]);
 
   // Fist or pointing-pinch → click whatever button is under the cursor
   // (last known position if the point was just lowered). Forgiving: if the
@@ -483,7 +483,7 @@ export function useGameEngine() {
     const x = menuCursorXRef.current;
     const y = menuCursorYRef.current;
     const el = document.elementFromPoint(x, y);
-    let target = (el?.closest?.("button, input") as HTMLElement | null) ?? null;
+    let target = (el?.closest?.("button, input, a") as HTMLElement | null) ?? null;
     if (
       !target ||
       !target.isConnected ||
@@ -501,7 +501,7 @@ export function useGameEngine() {
       if (target instanceof HTMLInputElement) {
         target.focus();
       } else {
-        (target as HTMLButtonElement).click();
+        (target as HTMLElement).click();
       }
       const cur = menuCursorRef.current;
       if (cur) {
@@ -611,6 +611,82 @@ export function useGameEngine() {
     gameStateRef.current = next;
     setGameState(next);
   }, []);
+
+  // Shared game over trigger (lives exhausted or stop game from pause menu)
+  const triggerGameOver = useCallback(() => {
+    const lastZone = journeyRef.current[journeyRef.current.length - 1];
+    if (lastZone) {
+      lastZone.distanceAt = distanceRef.current;
+    }
+    setGameOverStats({
+      score: distanceRef.current + scoreBonusRef.current,
+      maxCombo: runStatsRef.current.maxCombo,
+      grazes: runStatsRef.current.grazes,
+      powerUps: runStatsRef.current.powerUps,
+      dashes: runStatsRef.current.dashes,
+      shields: runStatsRef.current.shields,
+      bosses: runStatsRef.current.bosses,
+      journey: [...journeyRef.current],
+      finalObjective: getZoneStory(zoneRef.current).objective,
+    });
+    bossActiveRef.current = false;
+    setBossActive(false);
+    bossProjectilesRef.current = [];
+    setBossProjectiles([]);
+    bouldersRef.current = [];
+    setBoulders([]);
+    particlesRef.current = [];
+    setParticles([]);
+    powerUpsRef.current = [];
+    setPowerUps([]);
+    boltsRef.current = [];
+    setBolts([]);
+    scorePopupsRef.current = [];
+    setScorePopups([]);
+    if (bannerTimeoutRef.current !== null) {
+      window.clearTimeout(bannerTimeoutRef.current);
+      bannerTimeoutRef.current = null;
+    }
+    if (pendingBannerRef.current !== null) {
+      window.clearTimeout(pendingBannerRef.current);
+      pendingBannerRef.current = null;
+    }
+    setZoneBanner(null);
+    setBossIntensity(false);
+    transitionTo("gameover");
+
+    if (!runIdRef.current) runIdRef.current = crypto.randomUUID();
+    pendingRunRef.current = {
+      runId: runIdRef.current,
+      score: distanceRef.current + scoreBonusRef.current,
+      distance: distanceRef.current,
+      zone: zoneRef.current,
+      maxCombo: runStatsRef.current.maxCombo,
+      grazes: runStatsRef.current.grazes,
+      powerUps: runStatsRef.current.powerUps,
+      bosses: runStatsRef.current.bosses,
+      durationMs: Math.round(performance.now() - runStartTimeRef.current),
+    };
+    const pendingScore = pendingRunRef.current.score as number;
+    window
+      .fetch("/api/score/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score: pendingScore }),
+      })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (
+          data &&
+          data.qualifies &&
+          typeof data.rank === "number"
+        ) {
+          setPendingQualify({ rank: data.rank });
+        }
+      })
+      .catch(() => {});
+  }, [transitionTo]);
+
 
   // Top-10 prompt accepted: persist the callsign, sign the run with the
   // run-start token, then post it. Without a token the server rejects the
@@ -741,7 +817,49 @@ export function useGameEngine() {
     gestureShieldEnergyRef.current = 100;
     setZoneBanner(null);
     setBossIntensity(false);
+    // Clear all visual game objects so a fresh run starts with a clean screen.
+    bouldersRef.current = [];
+    setBoulders([]);
+    particlesRef.current = [];
+    setParticles([]);
+    powerUpsRef.current = [];
+    setPowerUps([]);
+    boltsRef.current = [];
+    setBolts([]);
+    scorePopupsRef.current = [];
+    setScorePopups([]);
+    shootMeterRef.current = 0;
+    setShootMeter(0);
+    setIsDashing(false);
+    dashHeldRef.current = false;
+    dashUntilRef.current = 0;
+    dashCooldownUntilRef.current = 0;
+    gestureShieldActiveRef.current = false;
+    gestureShieldVisibleRef.current = false;
+    setGestureShield(false);
+    setIsColliding(false);
+    pinchHeldRef.current = false;
+    pinchStartRef.current = 0;
+    setConfettiSeed(0);
   }, []);
+
+  const stopGame = useCallback(() => {
+    playClick();
+    triggerGameOver();
+  }, [triggerGameOver]);
+
+  const startGame = useCallback(() => {
+    playClick();
+    resetForFreshRun();
+    transitionTo("idle");
+  }, [resetForFreshRun, transitionTo]);
+
+  const goToHome = useCallback(() => {
+    playClick();
+    resetForFreshRun();
+    hideMenuCursor();
+    transitionTo("landing");
+  }, [resetForFreshRun, transitionTo, hideMenuCursor]);
 
   // Ask the server for a short-lived signing token bound to this run.
   const requestRunToken = useCallback((runId: string) => {
@@ -919,10 +1037,11 @@ export function useGameEngine() {
       setLowLight(result.lowLight === true);
     }
 
-    // Menu navigation is live on the idle, pause, and game-over screens: a
+    // Menu navigation is live on landing, idle, pause, and game-over screens: a
     // single pointing forefinger drives the cursor and must NOT start or
     // resume a run.
     const menuActive =
+      gameStateRef.current === "landing" ||
       gameStateRef.current === "idle" ||
       gameStateRef.current === "paused" ||
       gameStateRef.current === "gameover";
@@ -1139,6 +1258,9 @@ export function useGameEngine() {
     // Fists → pause mid-game, skip the first-play tutorial, or CONFIRM in
     // the menus (click whatever button is under the cursor). Edge-triggered;
     // lowering hands is required to re-trigger.
+    //
+    // The fist-click path shares the point-pinch cooldown so rapid-switching
+    // between fist and pinch can't fire menu clicks faster than one per 400ms.
     if (hold.fist >= GESTURE_HOLD_FRAMES && !fistPauseHeldRef.current) {
       fistPauseHeldRef.current = true;
       if (gameStateRef.current === "playing") {
@@ -1146,8 +1268,12 @@ export function useGameEngine() {
         transitionTo("paused");
       } else if (gameStateRef.current === "tutorial") {
         completeTutorial();
-      } else if (menuActive) {
+      } else if (
+        menuActive &&
+        performance.now() >= pointPinchCooldownUntilRef.current
+      ) {
         confirmMenu();
+        pointPinchCooldownUntilRef.current = performance.now() + 400;
       }
     }
     if (!result.isFist) {
@@ -1656,83 +1782,7 @@ export function useGameEngine() {
       livesRemainingRef.current -= 1;
       setLivesRemainingState(livesRemainingRef.current);
       if (livesRemainingRef.current <= 0) {
-        // Record how far the run got in the zone it fell in.
-        const lastZone = journeyRef.current[journeyRef.current.length - 1];
-        if (lastZone) {
-          lastZone.distanceAt = distanceRef.current;
-        }
-        setGameOverStats({
-          score: distanceRef.current + scoreBonusRef.current,
-          maxCombo: runStatsRef.current.maxCombo,
-          grazes: runStatsRef.current.grazes,
-          powerUps: runStatsRef.current.powerUps,
-          dashes: runStatsRef.current.dashes,
-          shields: runStatsRef.current.shields,
-          bosses: runStatsRef.current.bosses,
-          journey: [...journeyRef.current],
-          finalObjective: getZoneStory(zoneRef.current).objective,
-        });
-        // Clear all in-flight debris so nothing frozen lingers behind the
-        // game-over panel (boss, meteors, particles, popups, power-ups).
-        bossActiveRef.current = false;
-        setBossActive(false);
-        bossProjectilesRef.current = [];
-        setBossProjectiles([]);
-        bouldersRef.current = [];
-        setBoulders([]);
-        particlesRef.current = [];
-        setParticles([]);
-        powerUpsRef.current = [];
-        setPowerUps([]);
-        boltsRef.current = [];
-        setBolts([]);
-        scorePopupsRef.current = [];
-        setScorePopups([]);
-        // Drop any pending zone banners so nothing lingers over the panel.
-        if (bannerTimeoutRef.current !== null) {
-          window.clearTimeout(bannerTimeoutRef.current);
-          bannerTimeoutRef.current = null;
-        }
-        if (pendingBannerRef.current !== null) {
-          window.clearTimeout(pendingBannerRef.current);
-          pendingBannerRef.current = null;
-        }
-        setZoneBanner(null);
-        setBossIntensity(false);
-        transitionTo("gameover");
-        // A run only enters the leaderboard if it cracks the top-10 — and
-        // only after the player confirms their callsign. Ask first, post on
-        // confirm (the name prompt lives on the game-over screen).
-        if (!runIdRef.current) runIdRef.current = crypto.randomUUID();
-        pendingRunRef.current = {
-          runId: runIdRef.current,
-          score: distanceRef.current + scoreBonusRef.current,
-          distance: distanceRef.current,
-          zone: zoneRef.current,
-          maxCombo: runStatsRef.current.maxCombo,
-          grazes: runStatsRef.current.grazes,
-          powerUps: runStatsRef.current.powerUps,
-          bosses: runStatsRef.current.bosses,
-          durationMs: Math.round(performance.now() - runStartTimeRef.current),
-        };
-        const pendingScore = pendingRunRef.current.score as number;
-        window
-          .fetch("/api/score/check", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ score: pendingScore }),
-          })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (
-              data &&
-              data.qualifies &&
-              typeof data.rank === "number"
-            ) {
-              setPendingQualify({ rank: data.rank });
-            }
-          })
-          .catch(() => {});
+        triggerGameOver();
       }
     };
 
@@ -2909,7 +2959,7 @@ export function useGameEngine() {
 
     rafId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId);
-  }, [transitionTo, advanceTutorialStep, completeTutorial, unlockBadge]);
+  }, [transitionTo, advanceTutorialStep, completeTutorial, unlockBadge, triggerGameOver]);
 
   const selectSkin = useCallback((id: SkinId) => {
     setSkinId(id);
@@ -2956,6 +3006,10 @@ export function useGameEngine() {
     skinId,
     selectSkin,
     gameOverStats,
+    // Flow actions
+    startGame,
+    stopGame,
+    goToHome,
     // Input
     sensitivity,
     changeSensitivity,

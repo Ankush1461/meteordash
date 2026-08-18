@@ -8,13 +8,13 @@ import {
 } from "../lib/game/physics";
 
 describe("fallDuration (belt speeds up with distance)", () => {
-  it("is 10s at the start and through the first 50m", () => {
-    expect(fallDuration(0)).toBe(10);
-    expect(fallDuration(50)).toBe(10);
+  it("is 8.333s at the start and through the first 50m", () => {
+    expect(fallDuration(0)).toBeCloseTo(8.333, 3);
+    expect(fallDuration(50)).toBeCloseTo(8.333, 3);
   });
 
   it("decays as the run deepens", () => {
-    expect(fallDuration(100)).toBeLessThan(10);
+    expect(fallDuration(100)).toBeLessThan(8.333);
     expect(fallDuration(500)).toBeLessThan(fallDuration(100));
     expect(fallDuration(2000)).toBeLessThan(fallDuration(500));
   });
@@ -37,8 +37,8 @@ describe("responsive scaling (SSR / no-window fallback)", () => {
   });
 
   it("fallSpeed falls back to the reference screen height", () => {
-    // (2100 + 250) / 10s with no window uses the 2100px reference.
-    expect(fallSpeed(0)).toBeCloseTo(2100 / 10, 5);
+    // (2100 + 250) / fallDuration with no window uses the 2100px reference.
+    expect(fallSpeed(0)).toBeCloseTo(2100 / 8.333, 3);
     expect(fallSpeed(1000)).toBeCloseTo(2100 / fallDuration(1000), 5);
   });
 });

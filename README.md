@@ -13,7 +13,7 @@ Built with **Next.js 16 (App Router)**, **MediaPipe Hands** for real-time gestur
 - **Graze combo system** — thread meteors closely to chain up to a ×10 combo
 - **Power-ups** — shields, slow-mo, 2× score, and extra lives that you must steer into
 - **Pinch-to-fire** — the only offensive option: a thumb+index pinch fires a bolt straight up from the rocket (hold to charge). Gated by a shot meter that fills *only* from grazes and dashes, plus a hard 3-bolt cap in flight, so dodging stays the prime skill and you can never chain-fire a clear path
-- **Hand-driven menus** — the idle, skin-picker, and game-over screens are fully navigable without a mouse: point (one index finger) moves a glowing cursor, fist clicks whatever it hovers, and spread closes the floating panel. Pointing never accidentally starts a run — both hands *without* pointing begin the countdown
+- **Hand-driven menus (v2.1 Redesign)** — The home landing page has been redesigned to be a clean, single-screen dashboard with no container borders, making the Pilot Manual, Hangar, and diagnostics visible concurrently. Menus are fully navigable without a mouse: point (one index finger) moves a glowing cursor, fist/pinch clicks, and spread exits the active view. Pointing never accidentally starts a run — both hands without pointing begin the countdown.
 - **Badges & run stats** — persistent unlocks (grazer, dasher, combo streaks, boss slayer) stored in cookies
 - **First-play tutorial** — an interactive hand-drawn-style walkthrough of tilt, graze, and pickup; skip with both fists or Esc/Space
 - **Juice** — screen shake, explosion particles, parallax starfield, engine trail, impact flashes
@@ -21,6 +21,8 @@ Built with **Next.js 16 (App Router)**, **MediaPipe Hands** for real-time gestur
 - **Reserve lives** — hearts grabbed at full health bank as reserves that absorb the next hit, with clear "+1 Reserve" / "Lives Full" feedback
 - **Screen-size fairness** — gameplay normalizes to a 1280×800 reference viewport: meteor density per unit width, tilt→steering speed, fall time, and sprite sizes all scale with the actual screen, so nobody gets an edge from a bigger display
 - **Responsive, scrollbar-free HUD** — rocket positioning and all overlays adapt to any screen size
+- **20% faster opening belt (v2.1)** — meteors start at 8.33 s fall time (down from 10 s) so the game is intense from the first second; log-scaling acceleration keeps the late game progressively harder
+
 
 ## 🎮 How to play
 
@@ -152,7 +154,7 @@ Scores are validated server-side against the game's actual mechanics and deduped
 - `utils/` — `audioHandler`, `badges`, `skins`
 - `public/Images/` — game art
 
-## 📦 VERSION 2.0.0.0 IS HERE — WHAT'S NEW?
+## 📦 VERSION 2.1.0.0 IS HERE — WHAT'S NEW?
 
 This release rebuilds the game from a demo into a full arcade experience.
 

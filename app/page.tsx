@@ -77,6 +77,9 @@ export default function Home() {
     skinId,
     selectSkin,
     gameOverStats,
+    startGame,
+    stopGame,
+    goToHome,
     sensitivity,
     changeSensitivity,
     leaderboardRefresh,
@@ -215,16 +218,18 @@ export default function Home() {
         className="absolute inset-0 pointer-events-none transition-colors duration-1000"
         style={{ backgroundColor: zoneTheme.bg }}
       />
-      <div
-        className={`absolute left-3 top-3 z-30 transition-all duration-500 ${
-          isDetected ? "w-24" : "w-48"
-        } `}
-      >
-        <HandRecognizer
-          setHandResults={setHandResults}
-          retryAttempt={cameraRetry}
-        />
-      </div>
+      {gameState !== "landing" && (
+        <div
+          className={`absolute left-3 top-3 z-30 transition-all duration-500 ${
+            isDetected ? "w-24" : "w-48"
+          } `}
+        >
+          <HandRecognizer
+            setHandResults={setHandResults}
+            retryAttempt={cameraRetry}
+          />
+        </div>
+      )}
       <div ref={shakeWrapperRef} className="absolute inset-0">
         <Starfield speedRef={starfieldSpeedRef} />
         <div className="absolute z-10 h-screen w-screen overflow-hidden">
@@ -449,6 +454,7 @@ export default function Home() {
             position: "absolute",
             transition: "all",
             marginTop: `${isColliding ? rocketY + 7 : rocketY}px`,
+            display: (gameState === "landing" || gameState === "idle") ? "none" : "block",
           }}
         >
           {(shield || gestureShield) && (
@@ -496,6 +502,9 @@ export default function Home() {
         lowLight={lowLight}
         onRetry={retryCamera}
         gameState={gameState}
+        onStartGame={startGame}
+        onStopGame={stopGame}
+        onGoToHome={goToHome}
         countdown={countdown}
         isColliding={isColliding}
         distance={distance}

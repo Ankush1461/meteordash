@@ -77,10 +77,11 @@ export default function Leaderboard({ refreshKey = 0, highlightRunId }: Props) {
     <div className="w-full max-w-sm rounded-xl border border-white/10 bg-black/40 px-4 py-3">
       <div className="mb-3 flex items-center justify-center gap-2 border-b border-white/10 pb-3">
         <Image
-          src="/Images/meteordash.png"
+          src="/Images/meteordash_old.png"
           width={30}
           height={30}
           alt=""
+          style={{ height: "auto" }}
         />
         <span className="text-base font-extrabold tracking-wide text-red-600">
           Meteor Dash
@@ -147,11 +148,10 @@ export default function Leaderboard({ refreshKey = 0, highlightRunId }: Props) {
             return (
               <li
                 key={s.runId}
-                className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1 ${
-                  mine
+                className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1 ${mine
                     ? "border-amber-400/50 bg-amber-400/10"
                     : "border-transparent bg-white/5"
-                }`}
+                  }`}
               >
                 <span className={`w-5 shrink-0 text-xs font-extrabold ${rankColor}`}>
                   {i + 1}

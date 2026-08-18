@@ -22,7 +22,7 @@ export const INVINCIBILITY_MS = 1500;
 export const SCORE_TICK_MS = 100;
 export const COLLISION_INSET = 28;
 export const MIN_FALL_DURATION = 1.5;
-export const TILT_SMOOTHING = 0.25; // EMA alpha: lower = smoother steering, higher = snappier
+export const TILT_SMOOTHING = 0.40; // EMA alpha: higher = snappier and more responsive, lower = smoother but heavier lag
 export const DEFAULT_SENSITIVITY = 1;
 export const MIN_SENSITIVITY = 0.5;
 export const MAX_SENSITIVITY = 3;

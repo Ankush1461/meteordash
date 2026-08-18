@@ -57,11 +57,29 @@ const HandRecognizer = ({ setHandResults, retryAttempt = 0 }: Props) => {
         }
 
         interval = setInterval(() => {
-          const detections = handLandmarker.detectForVideo(
-            videoElement,
-            Date.now()
-          );
-          processDetections(detections, setHandResults);
+          if (
+            videoElement.videoWidth === 0 ||
+            videoElement.videoHeight === 0 ||
+            videoElement.readyState < 2 ||
+            videoElement.paused
+          ) {
+            return;
+          }
+          try {
+            const detections = handLandmarker.detectForVideo(
+              videoElement,
+              Date.now()
+            );
+            processDetections(detections, setHandResults);
+          } catch (e) {
+            // Suppress MediaPipe's transient ROI internal error that fires
+            // briefly when the video feed first starts (dimensions reported as
+            // valid but the WASM frame hasn't fully initialized yet).
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!msg.includes("ROI width") && !msg.includes("roi->width")) {
+              console.error("detectForVideo error:", e);
+            }
+          }
         }, 1000 / 30);
 
         // Room-lighting check: sample the average video brightness once a
@@ -182,25 +200,50 @@ function sampleVideoBrightness(video: HTMLVideoElement): number {
   return sum / (data.length / 4);
 }
 
+let sharedHandLandmarker: HandLandmarker | null = null;
+let modelPromise: Promise<HandLandmarker> | null = null;
+
+export async function getOrInitModel(): Promise<HandLandmarker> {
+  if (sharedHandLandmarker) {
+    return sharedHandLandmarker;
+  }
+  if (!modelPromise) {
+    modelPromise = (async () => {
+      const wasm = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      );
+      const handLandmarker = await HandLandmarker.createFromOptions(wasm, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "GPU",
+        },
+        numHands: 2,
+        runningMode: "VIDEO",
+      });
+      sharedHandLandmarker = handLandmarker;
+      return handLandmarker;
+    })();
+  }
+  return modelPromise;
+}
+
+// Background pre-fetch: download & compile model immediately after page load
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    getOrInitModel().catch(() => {});
+  }, 100);
+}
+
 async function initModel() {
-  const wasm = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-  );
-  const handLandmarker = HandLandmarker.createFromOptions(wasm, {
-    baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-      delegate: "GPU",
-    },
-    numHands: 2,
-    runningMode: "VIDEO",
-  });
-  return handLandmarker;
+  return getOrInitModel();
 }
 
 // Gesture classification thresholds. All distances are normalized by each
 // hand's own size (wrist → middle-MCP), so they work at any camera distance.
-const GESTURE = {
+// Exported for unit testing — the thresholds and feature extraction are
+// pure functions with no DOM/React dependencies.
+export const GESTURE = {
   // thumb-tip ↔ pinky-tip distance (open spread hand) relative to palm height
   spreadRatio: 1.3,
   // a flat open palm keeps the thumb tucked, so spread stays below this
@@ -246,7 +289,12 @@ const GESTURE = {
 // (thumb swinging clearly closer) does.
 const pointThumbBaseline = new Map<string, number>();
 
-function gestureFeatures(landmarks: { x: number; y: number }[]) {
+/**
+ * Extracts gesture features from raw MediaPipe landmarks.
+ * All distances are normalized by the hand's own size (wrist → middle-MCP)
+ * so they work at any camera distance. Exported for unit testing.
+ */
+export function gestureFeatures(landmarks: { x: number; y: number }[]) {
   const wrist = landmarks[0];
   const middleMcp = landmarks[9];
   const handSize =
@@ -390,16 +438,26 @@ function processDetections(
 
     // Per-frame gesture classification from raw landmarks. The hold/edge
     // detection (debounce, cooldowns) happens in setHandResults on the page.
+    //
+    // Priority order prevents mutually exclusive actions from firing at the
+    // same time: SPREAD (dash) > FLAT (shield) > PINCH (fire) > FIST (pause).
+    // A wide splayed-palm pose can satisfy both isFlat AND isSpread — spread
+    // wins so the dash fires instead of the shield, because spread is the
+    // more intentional, harder-to-accidentally-hold gesture.
     const feats = hands.map(gestureFeatures);
-    const isSpread = feats.every((h) => h.spread > GESTURE.spreadRatio);
+    let isSpread = feats.every((h) => h.spread > GESTURE.spreadRatio);
     // A flat palm keeps the thumb away from the index — the thumbIndex guard
     // stops a pinching hand (thumb tucked onto index) from reading as a shield.
-    const isFlat = feats.every(
-      (h) =>
-        h.openness >= GESTURE.flatOpenness &&
-        h.spread <= GESTURE.flatSpreadMax &&
-        h.thumbIndex > GESTURE.flatThumbMin
-    );
+    // Gated below: only fires when isSpread is false (priority), preventing
+    // a wide splayed-palm from firing both dash AND shield simultaneously.
+    const isFlat =
+      !isSpread &&
+      feats.every(
+        (h) =>
+          h.openness >= GESTURE.flatOpenness &&
+          h.spread <= GESTURE.flatSpreadMax &&
+          h.thumbIndex > GESTURE.flatThumbMin
+      );
     // A fist curls EVERY finger; a pointing hand extends the index, so the
     // indexExtended guard stops a point pose from ever reading as a fist
     // (which would click buttons in the menus).
@@ -453,12 +511,14 @@ function processDetections(
       single.openness <= GESTURE.fistOpenness &&
       single.spread <= GESTURE.fistSpreadMax &&
       !single.indexExtended;
+    // Single-hand priority mirrors the two-hand logic: spread (dash) beats
+    // flat (shield) so a wide splayed palm never fires both actions.
     setHandResults({
       isDetected: false,
       tilt: 0,
       degrees: 0,
       isSpread: isSingleSpread,
-      isFlat: isSingleFlat,
+      isFlat: isSingleSpread ? false : isSingleFlat,
       isFist: isSingleFist,
       isPinch: isSinglePinch,
       isPoint,

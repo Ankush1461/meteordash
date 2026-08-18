@@ -1,8 +1,13 @@
 import {
+  ArrowLeft,
   Coffee,
+  Hand,
+  Home,
   Loader2,
   Lock,
   Moon,
+  RotateCcw,
+  StopCircle,
   Trophy,
   UnfoldHorizontal,
   X,
@@ -14,6 +19,7 @@ import Image from "next/image";
 import { RocketSprite } from "./RocketComponent";
 import Leaderboard from "./Leaderboard";
 import ConfettiBurst from "./ConfettiBurst";
+import LandingPage from "./LandingPage";
 import { BadgeIcon, BADGES, type BadgeId } from "@/utils/badges";
 import { type RocketSkin, type SkinId } from "@/utils/skins";
 import {
@@ -24,6 +30,7 @@ import {
 } from "@/lib/game/support";
 
 export type GameState =
+  | "landing"
   | "idle"
   | "tutorial"
   | "countdown"
@@ -65,6 +72,9 @@ type Props = {
   lowLight: boolean;
   onRetry: () => void;
   gameState: GameState;
+  onStartGame: () => void;
+  onStopGame: () => void;
+  onGoToHome: () => void;
   countdown: number;
   isColliding: boolean;
   distance: number;
@@ -183,6 +193,9 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
   lowLight,
   onRetry,
   gameState,
+  onStartGame,
+  onStopGame,
+  onGoToHome,
   countdown,
   isColliding,
   distance,
@@ -211,7 +224,8 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
   // The leaderboard lives in a floating translucent window, opened from a
   // button — it stays out of the main column so the idle/game-over screens
   // fit without scrolling. The UPI support QR uses the same pattern.
-  const [supportOpen, setSupportOpen] = useState(false);  // Tip selection: a preset amount, each with its own static build-time QR.
+  const [supportOpen, setSupportOpen] = useState(false);
+  // Tip selection: a preset amount, each with its own static build-time QR.
   const [tip, setTip] = useState(UPI_AMOUNT);
   // Low-light warning is dismissible, but re-arms itself when the room
   // brightens back up and then goes dark again (render-phase adjustment,
@@ -242,10 +256,15 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [supportOpen]);
+
   // Leaving the menu screens (a run starting) closes the support popup —
-  // done as a render-phase adjustment, the React-recommended way to derive
-  // state from a prop change without a cascading effect.
-  if (supportOpen && gameState !== "idle" && gameState !== "gameover") {
+  // done as a render-phase adjustment.
+  if (
+    supportOpen &&
+    gameState !== "landing" &&
+    gameState !== "idle" &&
+    gameState !== "gameover"
+  ) {
     setSupportOpen(false);
   }
 
@@ -259,10 +278,12 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
   for (let i = 0; i < reserveLives; i++) {
     reserves.push(<RocketSprite key={`res-${i}`} skin={skin} size={18} />);
   }
+
   return (
     <div
-      className={`absolute z-30 h-screen w-screen flex items-center justify-center ${isColliding && "border-[18px] border-red-600 "
-        }`}
+      className={`absolute z-30 h-screen w-screen flex items-center justify-center ${
+        isColliding ? "border-[18px] border-red-600" : ""
+      }`}
     >
       {lowLight && !lowLightDismissed && (
         <div className="fixed left-1/2 top-16 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border border-amber-400/40 bg-[#0d1220]/95 px-3 py-1.5 text-[11px] font-bold text-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.2)] backdrop-blur">
@@ -280,204 +301,261 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
           </button>
         </div>
       )}
+
       {isLoading && (
-        <div className="flex items-center justify-space-between flex-col gap-10">
-          <div className="text-2xl font-bold">
-            Welcome to{" "}
-            <span className="text-2xl text-red-600 font-extrabold">
+        <div className="flex items-center justify-center flex-col gap-8 rounded-3xl border border-white/10 bg-black/60 p-10 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-md">
+          <div className="text-2xl font-bold text-center">
+            Initializing{" "}
+            <span className="text-3xl text-red-600 font-extrabold block mt-1">
               Meteor Dash
             </span>
           </div>
-          <Loader2 size={80} className="animate-spin" />
+          <Loader2 size={64} className="animate-spin text-red-500" />
+          <div className="text-xs font-semibold text-white/60">
+            Setting up camera & AI vision models...
+          </div>
         </div>
       )}
+
       {!isLoading && isCameraError && (
-        <div className="flex items-center justify-center flex-col gap-6">
-          <div className="text-3xl font-extrabold text-red-600">
-            Camera unavailable
+        <div className="flex items-center justify-center flex-col gap-6 rounded-3xl border border-red-500/30 bg-black/80 p-8 shadow-[0_0_40px_rgba(220,38,38,0.3)] backdrop-blur-md max-w-md text-center">
+          <div className="text-3xl font-extrabold text-red-500">
+            Camera Unavailable
           </div>
-          <div className="text-md font-bold max-w-md text-center">
+          <div className="text-sm font-medium text-white/80 leading-relaxed">
             {cameraError}
           </div>
-          <button
-            className="bg-transparent hover:bg-red-600 text-red-600 hover:text-white border border-red-600 hover:border-transparent rounded py-2 px-4"
-            onClick={onRetry}
-          >
-            Try Again
-          </button>
+          <div className="flex gap-3">
+            <button
+              className="bg-red-600 hover:bg-red-500 text-white font-bold rounded-full py-2.5 px-6 shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all"
+              onClick={onRetry}
+            >
+              Try Again
+            </button>
+            <button
+              className="border border-white/20 bg-white/5 hover:bg-white/15 text-white/80 font-bold rounded-full py-2.5 px-5 transition-all"
+              onClick={onGoToHome}
+            >
+              Main Menu
+            </button>
+          </div>
         </div>
       )}
+
+      {/* 1. HOME LANDING PAGE STATE */}
+      {!isLoading && !isCameraError && gameState === "landing" && (
+        <LandingPage
+          onStartGame={onStartGame}
+          onOpenLeaderboard={onOpenLeaderboard}
+          onOpenSupport={() => setSupportOpen(true)}
+          highScore={highScore}
+          skin={skin}
+          skins={skins}
+          unlockedSkinIds={unlockedSkinIds}
+          onSelectSkin={onSelectSkin}
+        />
+      )}
+
+      {/* 2. START HALT STAGE (IDLE) - Waiting for pilot hands */}
       {!isLoading && !isCameraError && gameState === "idle" && (
         <div
           data-menu-scroll
-          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-space-between gap-10 overflow-y-auto px-6 py-6"
+          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-between gap-6 overflow-y-auto px-6 py-6 select-none"
         >
           <div className="flex items-center justify-center flex-col gap-2">
-            <Image src="/Images/meteordash.png" width={80} height={80} alt="" />
+            <Image src="/Images/meteordash_old.png" width={80} height={80} alt="Logo" priority style={{ height: "auto" }} />
             <span className="text-3xl text-red-600 font-extrabold">
               Meteor Dash
             </span>
           </div>
-          <div className="text-2xl animate-ping font-extrabold">
-            Let&apos;s start
-          </div>
-          <div className="text-md font-bold">
-            Show both hands to start, tilt to steer
-          </div>
-          <div className="text-sm font-semibold text-white/80">
-            Spread hands: dash • Flat palms: shield • Fists: pause • Pinch:
-            fire
+
+          <div className="flex flex-col items-center gap-1">
+            <div className="text-2xl animate-pulse font-extrabold text-amber-300 tracking-wide">
+              LAUNCH READINESS
+            </div>
+            <div className="text-sm font-semibold text-white/75">
+              Flight system calibrated & standing by
+            </div>
           </div>
 
-          {/* Hands-free menu discovery strip — teaches the pointing-finger
-              cursor and pinch-click before the player ever needs to pause. */}
-          <div className="mt-0.5 flex max-w-md flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
-            <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
-              <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
-                <PointGlyph className="h-4 w-4 text-slate-700" />
+          {/* Big Visual Dual-Hand Prompt Card */}
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-sky-400/40 bg-gradient-to-b from-sky-950/60 to-black/70 p-6 shadow-[0_0_35px_rgba(56,189,248,0.25)] backdrop-blur-md max-w-md w-full text-center">
+            <div className="flex items-center justify-center gap-6 text-sky-400">
+              <Hand size={42} className="animate-bounce" />
+              <Hand size={42} className="animate-bounce [animation-delay:150ms]" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-lg font-extrabold text-white">
+                Raise Both Hands in Front of Camera
               </span>
-              <span className="ml-1">move cursor</span>
-            </span>
-            <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
-              <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
-                <PinchGlyph className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-medium text-white/80 leading-relaxed">
+                Position both hands in the frame to launch the 3-2-1 countdown!
               </span>
-              <span className="ml-1">pinch = click</span>
-            </span>
-            <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
-              <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
-                <UnfoldHorizontal size={14} className="text-slate-700" />
-              </span>
-              <span className="ml-1">spread = back</span>
-            </span>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-900/30 px-3 py-1 text-[11px] font-bold text-sky-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>Camera Tracking Active</span>
+            </div>
           </div>
 
+          {/* Controls Quick Bar */}
           <div className="flex flex-col items-center gap-2">
-            <div className="text-xs font-bold uppercase tracking-widest text-white/60">
-              Your Ship
+            <div className="text-xs font-semibold text-white/80 flex flex-wrap justify-center gap-x-3 gap-y-1 max-w-md text-center">
+              <span><span className="font-bold text-sky-300">Tilt:</span> steer</span>
+              <span>•</span>
+              <span><span className="font-bold text-sky-300">Spread:</span> dash</span>
+              <span>•</span>
+              <span><span className="font-bold text-emerald-300">Palms:</span> shield</span>
+              <span>•</span>
+              <span><span className="font-bold text-red-300">Fists:</span> pause</span>
+              <span>•</span>
+              <span><span className="font-bold text-amber-300">Pinch:</span> fire</span>
             </div>
-            <div className="flex items-center gap-3">
-              <RocketSprite skin={skin} size={56} />
-              <div className="flex flex-col items-start gap-0.5">
-                <span
-                  className="text-lg font-extrabold"
-                  style={{ color: skin.glow }}
-                >
-                  {skin.name}
+
+            {/* Hands-free menu discovery strip */}
+            <div className="mt-1 flex max-w-md flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
+              <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
+                <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
+                  <PointGlyph className="h-4 w-4 text-slate-700" />
                 </span>
-                <span className="max-w-[220px] text-left text-[11px] font-semibold text-white/60">
-                  {skin.description}
+                <span className="ml-1">move cursor</span>
+              </span>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
+                <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
+                  <PinchGlyph className="h-4 w-4 text-slate-700" />
                 </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              {skins.map((s) => {
-                const unlocked = unlockedSkinIds.includes(s.id);
-                const selected = s.id === skin.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    disabled={!unlocked}
-                    onClick={() => onSelectSkin(s.id)}
-                    title={
-                      unlocked ? s.name : `Locked — ${s.unlockHint}`
-                    }
-                    aria-label={
-                      unlocked ? s.name : `Locked: ${s.unlockHint}`
-                    }
-                    className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 bg-black/40 transition-all ${unlocked
-                      ? "cursor-pointer hover:scale-110"
-                      : "cursor-not-allowed opacity-45 grayscale"
-                      }`}
-                    style={{
-                      borderColor: selected
-                        ? s.glow
-                        : unlocked
-                          ? `${s.glow}77`
-                          : "#44403c",
-                      boxShadow: selected ? `0 0 12px ${s.glow}` : undefined,
-                    }}
-                  >
-                    <RocketSprite skin={s} size={22} />
-                    {!unlocked && (
-                      <Lock
-                        size={11}
-                        className="absolute bottom-0 right-0 text-stone-500"
-                      />
-                    )}
-                  </button>
-                );
-              })}
+                <span className="ml-1">pinch = click</span>
+              </span>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-white/85">
+                <span className="handdraw-icon flex h-6 w-6 shrink-0 items-center justify-center">
+                  <UnfoldHorizontal size={14} className="text-slate-700" />
+                </span>
+                <span className="ml-1">spread = back</span>
+              </span>
             </div>
           </div>
 
-          <span className="text-2xl font-semibold">Check out my socials</span>
-          <SocialMediaLinks />
-        </div>
-      )}
-      {!isLoading && !isCameraError && gameState === "countdown" && (
-        <div className="flex items-center justify-space-between flex-col gap-8">
-          <div className="text-3xl font-extrabold text-red-600">
-            Get Ready!
-          </div>
-          <div className="text-8xl font-extrabold">
-            {countdown > 0 ? countdown : "GO!"}
-          </div>
-        </div>
-      )}
-      {!isLoading && !isCameraError && gameState === "paused" && (
-        <div
-          data-menu-scroll
-          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-space-between gap-6 overflow-y-auto px-6 py-6"
-        >
-          <div className="flex items-center justify-center flex-col gap-2">
-            <Image src="/Images/meteordash.png" width={80} height={80} alt="" />
-            <span className="text-3xl text-red-600 font-extrabold">
-              Meteor Dash
-            </span>
+          {/* Back to Home CTA */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onGoToHome}
+              className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-2.5 text-xs font-bold text-white/80 transition-all hover:bg-white/15 hover:text-white hover:scale-105"
+            >
+              <ArrowLeft size={14} />
+              Return to Main Menu
+            </button>
           </div>
 
-          <div className="text-2xl animate-ping font-extrabold">
-            P A U S E D
-          </div>
-          <button
-            className="bg-transparent hover:bg-red-600 text-red-600 hover:text-white border border-red-600 hover:border-transparent rounded py-2 px-4"
-            onClick={() => window.location.reload()}
-          >
-            Start Fresh
-          </button>
-          <div className="text-md font-bold">
-            Lower hands, then show both hands to continue...
-          </div>
-          <div className="max-w-xs text-center text-[11px] font-semibold leading-relaxed text-white/60">
-            Hands-free menu: point one forefinger to move the cursor • pinch
-            the pointed finger to click • spread to go back
-          </div>
           <span className="text-xl font-semibold">Check out my socials</span>
           <SocialMediaLinks />
         </div>
       )}
-      {!isLoading && !isCameraError && gameState === "gameover" && (
+
+      {/* 3. COUNTDOWN STATE */}
+      {!isLoading && !isCameraError && gameState === "countdown" && (
+        <div className="flex items-center justify-center flex-col gap-8">
+          <div className="text-3xl font-extrabold text-red-500 tracking-wider">
+            GET READY!
+          </div>
+          <div className="text-8xl font-black bg-gradient-to-b from-white via-amber-200 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_40px_rgba(249,115,22,0.8)]">
+            {countdown > 0 ? countdown : "GO!"}
+          </div>
+        </div>
+      )}
+
+      {/* 4. PAUSED STATE WITH STOP GAME OPTION */}
+      {!isLoading && !isCameraError && gameState === "paused" && (
         <div
           data-menu-scroll
-          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-space-between gap-3 overflow-y-auto px-6 py-4"
+          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-between gap-6 overflow-y-auto px-6 py-6 select-none"
         >
-          <div className="flex items-center justify-center flex-col gap-1">
-            <Image src="/Images/meteordash.png" width={64} height={64} alt="" />
+          <div className="flex items-center justify-center flex-col gap-2">
+            <Image src="/Images/meteordash_old.png" width={70} height={70} alt="Logo" style={{ height: "auto" }} />
             <span className="text-2xl text-red-600 font-extrabold">
               Meteor Dash
             </span>
           </div>
-          <div className="text-xl animate-ping font-extrabold">GAME OVER</div>
-          <div className="text-lg font-extrabold">
+
+          <div className="text-3xl animate-pulse font-extrabold text-amber-300 tracking-wider">
+            P A U S E D
+          </div>
+
+          <div className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/40 px-6 py-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-white/60">
+              Current Run Score
+            </span>
+            <span className="text-2xl font-extrabold text-amber-400">
+              {distance}
+            </span>
+          </div>
+
+          <div className="text-sm font-semibold text-white/80 text-center">
+            Lower hands, then show both hands to continue flight...
+          </div>
+
+          {/* Pause Action Buttons: Stop Game, Start Fresh, Main Menu */}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              id="stop-game-button"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 px-6 py-3 text-sm font-extrabold text-white shadow-[0_0_25px_rgba(220,38,38,0.6)] transition-all hover:scale-105 hover:bg-red-500 active:scale-95"
+              onClick={onStopGame}
+            >
+              <StopCircle size={18} />
+              Stop Game & Record Score
+            </button>
+
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-xs font-bold text-white/90 transition-all hover:bg-white/15 hover:text-white"
+              onClick={onStartGame}
+            >
+              <RotateCcw size={15} />
+              Start Fresh
+            </button>
+
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-xs font-bold text-white/90 transition-all hover:bg-white/15 hover:text-white"
+              onClick={onGoToHome}
+            >
+              <Home size={15} />
+              Main Menu
+            </button>
+          </div>
+
+          <div className="max-w-xs text-center text-[11px] font-semibold leading-relaxed text-white/60">
+            Hands-free menu: point one forefinger to move cursor • pinch pointed finger to click • spread to go back
+          </div>
+          <span className="text-lg font-semibold">Check out my socials</span>
+          <SocialMediaLinks />
+        </div>
+      )}
+
+      {/* 5. GAME OVER STATE */}
+      {!isLoading && !isCameraError && gameState === "gameover" && (
+        <div
+          data-menu-scroll
+          className="no-scrollbar flex max-h-[92vh] flex-col items-center justify-between gap-3 overflow-y-auto px-6 py-4 select-none"
+        >
+          <div className="flex items-center justify-center flex-col gap-1">
+            <Image src="/Images/meteordash_old.png" width={64} height={64} alt="" style={{ height: "auto" }} />
+            <span className="text-2xl text-red-600 font-extrabold">
+              Meteor Dash
+            </span>
+          </div>
+          <div className="text-xl animate-pulse font-extrabold text-red-500 tracking-wider">
+            GAME OVER
+          </div>
+          <div className="text-lg font-extrabold text-white/90">
             {`Your High Score: ${highScore}`}
           </div>
 
           {runStats && (
             <>
-              <div className="text-lg font-extrabold text-amber-300">
-                {`Run Score: ${runStats.score}`}
+              <div className="text-xl font-extrabold text-amber-300">
+                {`Final Score: ${runStats.score}`}
               </div>
               {runStats.journey && runStats.journey.length > 0 && (
                 <div className="flex w-full max-w-sm flex-col items-center gap-2">
@@ -486,7 +564,6 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
                   </div>
                   <div className="flex w-full flex-col gap-1.5">
                     {runStats.journey.map((v, i) => {
-                      const isLast = i === runStats.journey.length - 1;
                       const accent =
                         ZONE_ACCENTS[(v.zone - 1) % ZONE_ACCENTS.length];
                       return (
@@ -512,7 +589,7 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
                                 ✓ Cleared
                               </span>
                             ) : (
-                              <span className="text-red-400">✕ Fell here</span>
+                              <span className="text-red-400">✕ Ended here</span>
                             )}
                             <span className="text-white/50">
                               {v.cleared
@@ -526,7 +603,7 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
                   </div>
                   {runStats.finalObjective && (
                     <div className="max-w-xs text-center text-[11px] italic text-white/60">
-                      {`Mission incomplete: ${runStats.finalObjective}`}
+                      {`Mission status: ${runStats.finalObjective}`}
                     </div>
                   )}
                 </div>
@@ -571,20 +648,36 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
             </>
           )}
 
-          <button
-            className="bg-transparent hover:bg-red-600 text-red-600 hover:text-white border border-red-600 hover:border-transparent rounded py-2 px-4"
-            onClick={() => window.location.reload()}
-          >
-            Play Again
-          </button>
+          {/* Action Buttons: Play Again & Main Menu */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 px-7 py-3 text-sm font-extrabold text-white shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all hover:scale-105 hover:bg-red-500"
+              onClick={onStartGame}
+            >
+              <RotateCcw size={16} />
+              Play Again
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-xs font-bold text-white/90 transition-all hover:bg-white/15 hover:text-white"
+              onClick={onGoToHome}
+            >
+              <Home size={15} />
+              Main Menu
+            </button>
+          </div>
+
           <div className="max-w-xs text-center text-[11px] font-semibold leading-relaxed text-white/60">
             Hands-free menu: point one forefinger to move the cursor • pinch
             the pointed finger to click • spread to go back
           </div>
-          <span className="text-2xl font-semibold">Check out my socials</span>
+          <span className="text-xl font-semibold">Check out my socials</span>
           <SocialMediaLinks />
         </div>
       )}
+
+      {/* Floating Buttons: Leaderboard & Buy me a Coffee for idle / gameover */}
       {!isLoading && !isCameraError && (gameState === "idle" || gameState === "gameover") && (
         <button
           type="button"
@@ -595,6 +688,7 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
           Leaderboard
         </button>
       )}
+
       {!isLoading && !isCameraError && (gameState === "idle" || gameState === "gameover") && (
         <button
           type="button"
@@ -605,13 +699,15 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
           Buy me a coffee
         </button>
       )}
+
+      {/* Modals: Leaderboard */}
       {leaderboardOpen && (
         <div
-          className="leaderboard-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          className="leaderboard-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={onCloseLeaderboard}
         >
           <div
-            className="leaderboard-window no-scrollbar relative max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-black/70 p-5 backdrop-blur-md"
+            className="leaderboard-window no-scrollbar relative max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-5 backdrop-blur-md"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -624,18 +720,22 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
             </button>
             <Leaderboard
               refreshKey={leaderboardRefresh}
-              highlightRunId={gameState === "gameover" ? (postedRunId ?? undefined) : undefined}
+              highlightRunId={
+                gameState === "gameover" ? postedRunId ?? undefined : undefined
+              }
             />
           </div>
         </div>
       )}
+
+      {/* Modals: Buy Me a Coffee Support */}
       {supportOpen && (
         <div
-          className="leaderboard-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          className="leaderboard-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={closeSupport}
         >
           <div
-            className="leaderboard-window no-scrollbar relative max-h-[85vh] w-full max-w-xs overflow-y-auto rounded-2xl border border-white/15 bg-black/70 p-5 backdrop-blur-md"
+            className="leaderboard-window no-scrollbar relative max-h-[85vh] w-full max-w-xs overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-5 backdrop-blur-md"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -690,54 +790,69 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
           </div>
         </div>
       )}
+
+      {/* Copyright line */}
       {gameState === "idle" && (
         <div className="pointer-events-none fixed bottom-1.5 left-1/2 z-40 -translate-x-1/2 select-none text-center text-[10px] font-semibold tracking-wide text-white/40">
           {`© 2026 Meteor Dash · Built by Ankush Karmakar`}
         </div>
       )}
-      <div className="fixed top-2 right-6">{`High Score: ${highScore > 0 ? highScore : 0
-        }`}</div>
-      <div className="fixed top-6 right-6">{`Distance: ${distance}`}</div>
-      <div className="fixed top-12 right-6 flex flex-row gap-1">
-        {lives}
-        {reserves.length > 0 && (
-          <span
-            className="ml-1 flex flex-row gap-1 opacity-40 saturate-50"
-            title="Reserve lives — absorb the next hit"
-          >
-            {reserves}
-          </span>
-        )}
-      </div>
-      {combo > 1 && (
-        <div className="fixed top-20 right-6 text-sm font-extrabold text-amber-400">
-          {`Combo ×${combo}`}
-        </div>
-      )}
-      {gameState === "playing" && (
-        <div className="fixed top-[5.6rem] right-6 flex flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-bold uppercase tracking-widest text-sky-300/80">
-              Bolt
-            </span>
-            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-sky-400 transition-[width] duration-200"
-                style={{ width: `${Math.min(100, shootMeter)}%` }}
-              />
-            </div>
+
+      {/* In-Game HUD: High Score, Distance, Lives, Combo, Ammo (Only when playing/countdown/paused) */}
+      {(gameState === "playing" ||
+        gameState === "countdown" ||
+        gameState === "paused") && (
+        <>
+          <div className="fixed top-2 right-6 font-bold text-sm text-white/90">
+            {`High Score: ${highScore > 0 ? highScore : 0}`}
           </div>
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
+          <div className="fixed top-6 right-6 font-extrabold text-base text-amber-400">
+            {`Distance: ${distance}m`}
+          </div>
+          <div className="fixed top-12 right-6 flex flex-row gap-1">
+            {lives}
+            {reserves.length > 0 && (
               <span
-                key={i}
-                className={`h-1.5 w-4 rounded-full ${i < boltCount ? "bg-sky-300" : "bg-white/10"
-                  }`}
-              />
-            ))}
+                className="ml-1 flex flex-row gap-1 opacity-40 saturate-50"
+                title="Reserve lives — absorb the next hit"
+              >
+                {reserves}
+              </span>
+            )}
           </div>
-        </div>
+          {combo > 1 && (
+            <div className="fixed top-20 right-6 text-sm font-extrabold text-amber-400">
+              {`Combo ×${combo}`}
+            </div>
+          )}
+          {gameState === "playing" && (
+            <div className="fixed top-[5.6rem] right-6 flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-sky-300/80">
+                  Bolt
+                </span>
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-sky-400 transition-[width] duration-200"
+                    style={{ width: `${Math.min(100, shootMeter)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-4 rounded-full ${
+                      i < boltCount ? "bg-sky-300" : "bg-white/10"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
+
       {pendingQualify && (
         <NamePrompt
           key={pendingQualify.rank}
@@ -746,6 +861,7 @@ const GameInfoOverlay = React.memo(function GameInfoOverlay({
           onDismiss={onDismissName}
         />
       )}
+
       {confettiSeed > 0 && (
         <ConfettiBurst key={confettiSeed} seed={confettiSeed} />
       )}

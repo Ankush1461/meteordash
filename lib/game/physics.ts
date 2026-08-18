@@ -9,9 +9,11 @@ import {
 
 // Meteor fall duration (seconds) shrinks as the run gets deeper, so the
 // belt speeds up with distance. Log falloff keeps it fair at high depth.
+// We start with 8.33 seconds (20% faster than the original 10 seconds).
 export function fallDuration(distance: number): number {
-  if (distance <= 50) return 10;
-  return Math.max(MIN_FALL_DURATION, 10 - Math.log2(distance / 50));
+  const baseDuration = 8.333; // 20% faster initial speed (10 / 1.2 = 8.33)
+  if (distance <= 50) return baseDuration;
+  return Math.max(MIN_FALL_DURATION, baseDuration - Math.log2(distance / 50));
 }
 
 // --- Responsive gameplay scaling ---------------------------------------
